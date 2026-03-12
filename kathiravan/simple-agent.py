@@ -15,9 +15,9 @@ def calculator(a, b, action: str):
         b : an integet/ float type number
         action: arithmetic opertation to be done
     """
-    if action.lower() == "additon" or "add":
+    if action.lower() == "additon" or action.lower() == "add":
         return a + b
-    elif action.lower() == "subtraction" or "sub":
+    elif action.lower() == "subtraction" or action.lower() == "sub":
         return a - b
     elif action.lower() == "multiplication":
         return a * b
