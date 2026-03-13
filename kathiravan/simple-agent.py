@@ -47,3 +47,49 @@ agent = create_agent(model="gpt-4o", tools=[calculator, get_git_user_info], syst
 
 result = agent.invoke({"messages": [{"role": "user", "content": "Sum of 5 and 10"}]})
 print(result)
+
+
+
+# ----------------------------------------- Decision Making agent -----------------------------------------
+
+'''
+The below agent decides what the user should do in a day based on the weather 
+'''
+
+'''
+from langchain.agents import create_agent
+from langchain.tools import tool
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+@tool
+def get_weather(city: str) -> str:
+    """Get weather of a city"""
+    if city.lower() == "chennai":
+        return "rain"
+    return "sunny"
+
+
+@tool
+def suggest_movie() -> str:
+    """Suggest a movie if weather is bad"""
+    return "Watch Interstellar"
+
+
+@tool
+def suggest_place() -> str:
+    """Suggest tourist place if weather is good"""
+    return "Visit Marina Beach"
+
+
+agent = create_agent(
+    model="gpt-4o", tools=[suggest_movie, get_weather, suggest_place], system_prompt="You're a day planner"
+)
+
+respone = agent.invoke(
+    {"messages": [{"role": "user", "content": "Check weather in Bangalore and suggest what I should do"}]}
+)
+print(respone)
+'''
