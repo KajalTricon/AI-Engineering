@@ -4,6 +4,7 @@ from langchain.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain.tools import tool
+import requests
 
 load_dotenv()
 
