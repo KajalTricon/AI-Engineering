@@ -6,3 +6,4 @@ static/site_*.html
 docai/
 .env
 .env.example
+static/
