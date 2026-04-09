@@ -1,102 +1,196 @@
-import { useMemo, useState } from 'react';
-import { BookOpen, ChevronLeft, GitBranch, LayoutGrid, MessageSquare, Network } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  ChevronLeft,
+  FolderGit2,
+  GitBranch,
+  LayoutGrid,
+  Network,
+  PanelsTopLeft,
+} from 'lucide-react';
 import DocumentationFrame from '../components/DocumentationFrame';
+import ErrorState from '../components/ErrorState';
 import MermaidPanel from '../components/MermaidPanel';
 import ModuleGrid from '../components/ModuleGrid';
 import QuestionPanel from '../components/QuestionPanel';
 import RepoHeader from '../components/RepoHeader';
-import {
-  DocumentationResponse,
-  ModuleSummary,
-  QAPair,
-  RepoStatusResponse,
-} from '../types';
+import { ProjectWorkspace } from '../types';
 
 type Tab = 'documentation' | 'modules' | 'architecture' | 'flow';
 
 interface DashboardProps {
-  documentation: DocumentationResponse | null;
-  modules: ModuleSummary[];
+  activeProject: ProjectWorkspace;
   onAskQuestion: (question: string) => Promise<void>;
+  onSelectProject: (repoId: string) => void;
   onStartOver: () => void;
-  qaHistory: QAPair[];
-  repoStatus: RepoStatusResponse;
-  repoUrl: string;
+  projects: ProjectWorkspace[];
+}
+
+function getProjectName(project: ProjectWorkspace) {
+  return project.status?.name || project.repoUrl.split('/').filter(Boolean).pop() || 'repository';
 }
 
 export default function Dashboard({
-  documentation,
-  modules,
+  activeProject,
   onAskQuestion,
+  onSelectProject,
   onStartOver,
-  qaHistory,
-  repoStatus,
-  repoUrl,
+  projects,
 }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<Tab>('documentation');
   const [chatOpen, setChatOpen] = useState(false);
 
-  const repoName = useMemo(
-    () => repoStatus.name || repoUrl.split('/').filter(Boolean).pop() || 'repository',
-    [repoStatus.name, repoUrl],
-  );
+  useEffect(() => {
+    setActiveTab('documentation');
+    setChatOpen(false);
+  }, [activeProject.repoId]);
+
+  const projectName = getProjectName(activeProject);
 
   const tabs = [
     { id: 'documentation', label: 'Documentation', icon: LayoutGrid },
-    { id: 'modules', label: 'Modules', icon: BookOpen },
+    { id: 'modules', label: 'Modules', icon: PanelsTopLeft },
     { id: 'architecture', label: 'Architecture', icon: Network },
     { id: 'flow', label: 'Flow chart', icon: GitBranch },
   ] as const;
 
+  const renderWorkspace = () => {
+    if (activeProject.status?.status === 'failed') {
+      return (
+        <ErrorState
+          message={activeProject.error || activeProject.status.error_message || 'Project processing failed.'}
+        />
+      );
+    }
+
+    if (activeProject.status?.status !== 'completed') {
+      return (
+        <div className="rounded-[24px] border border-[#629bb5]/22 bg-white/92 p-6 shadow-[0_18px_40px_rgba(68,127,152,0.12)]">
+          <p className="text-lg font-semibold text-[#447f98]">
+            {projectName} is being prepared
+          </p>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+            We keep polling the same repository APIs for this project until the
+            documentation, modules, and diagrams are ready.
+          </p>
+        </div>
+      );
+    }
+
+    if (activeProject.workspaceLoading || !activeProject.workspaceLoaded) {
+      return (
+        <div className="rounded-[28px] border border-[#629bb5]/30 bg-white/92 p-8 shadow-[0_18px_40px_rgba(68,127,152,0.12)]">
+          <p className="text-lg font-semibold text-[#447f98]">
+            Loading project workspace
+          </p>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+            The repository analysis is complete. We are now loading the generated
+            documentation and module summaries for this project.
+          </p>
+        </div>
+      );
+    }
+
+    if (activeProject.error) {
+      return <ErrorState message={activeProject.error} />;
+    }
+
+    return (
+      <>
+        {activeTab === 'documentation' && (
+          <DocumentationFrame markdown={activeProject.documentation?.markdown ?? null} />
+        )}
+        {activeTab === 'modules' && <ModuleGrid modules={activeProject.modules} />}
+        {activeTab === 'architecture' && (
+          <MermaidPanel
+            description={activeProject.documentation?.content?.architecture.description}
+            mermaid={activeProject.documentation?.content?.architecture.mermaid}
+            title={activeProject.documentation?.content?.architecture.title || 'Architecture'}
+          />
+        )}
+        {activeTab === 'flow' && (
+          <MermaidPanel
+            description={activeProject.documentation?.content?.flow.description}
+            mermaid={activeProject.documentation?.content?.flow.mermaid}
+            title={activeProject.documentation?.content?.flow.title || 'Flow chart'}
+          />
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#d6ebf3]">
       <div className="flex min-h-screen">
-        <aside className="fixed left-0 top-0 h-screen w-[240px] border-r border-[#629bb5]/30 bg-[#447f98] px-5 py-6">
-          <RepoHeader name={repoName} repoUrl={repoStatus.github_url} status={repoStatus.status} />
-
-          <div className="mt-8">
+        <aside className="fixed left-0 top-0 h-screen w-[280px] border-r border-[#629bb5]/30 bg-[#447f98] px-5 py-6">
+          <div className="border-b border-[#629bb5]/20 pb-6">
             <p className="text-xs uppercase tracking-[0.28em] text-[#b9d8e1]">
-              Modules
+              Projects
             </p>
-            <div className="mt-4 max-h-[48vh] space-y-1 overflow-y-auto pr-1">
-              {modules.map((module) => (
-                <div
-                  key={module.module_id}
-                  className="rounded-r-full border-l-2 border-[#629bb5] bg-[#629bb5]/10 px-3 py-2 font-mono text-sm text-[#d6ebf3]"
-                >
-                  {module.path}
-                </div>
-              ))}
-            </div>
           </div>
 
-          <div className="mt-8 space-y-2 text-sm text-[#dadee1]">
-            <p>Overview</p>
-            <p>Architecture</p>
-            <p>Setup Guide</p>
-            <p>API Reference</p>
+          <div className="mt-6 max-h-[54vh] space-y-2 overflow-y-auto pr-1">
+            {projects.map((project) => {
+              const isActive = project.repoId === activeProject.repoId;
+              const statusLabel = project.status?.status || 'submitted';
+
+              return (
+                <button
+                  key={project.repoId}
+                  className={`w-full rounded-[22px] border px-4 py-4 text-left transition ${
+                    isActive
+                      ? 'border-[#d6ebf3] bg-[#629bb5]/28'
+                      : 'border-[#629bb5]/20 bg-[#629bb5]/10 hover:bg-[#629bb5]/18'
+                  }`}
+                  onClick={() => onSelectProject(project.repoId)}
+                  type="button"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <FolderGit2 className="shrink-0 text-[#d6ebf3]" size={16} />
+                        <p className="truncate font-mono text-sm font-semibold text-white">
+                          {getProjectName(project)}
+                        </p>
+                      </div>
+                      <p className="mt-2 truncate text-xs text-[#b9d8e1]">
+                        {project.repoUrl}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-white/14 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6ebf3]">
+                      {statusLabel}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           <button
-            className="mt-10 w-full rounded-full bg-[#629bb5] px-4 py-3 text-sm font-semibold text-[#447f98] transition hover:bg-white"
+            className="mt-8 w-full rounded-full border border-white/70 bg-[#d6ebf3] px-4 py-3 text-sm font-semibold text-[#224e63] shadow-[0_12px_24px_rgba(0,0,0,0.14)] transition hover:-translate-y-0.5 hover:bg-white"
             onClick={() => setChatOpen(true)}
             type="button"
           >
-            Ask a question
+            Ask about selected project
           </button>
 
           <button
-            className="mt-3 w-full rounded-full border border-[#629bb5]/40 px-4 py-3 text-sm font-semibold text-[#d6ebf3] transition hover:bg-[#629bb5]/15"
+            className="mt-3 w-full rounded-full border border-white/70 bg-[#d6ebf3] px-4 py-3 text-sm font-semibold text-[#224e63] shadow-[0_12px_24px_rgba(0,0,0,0.1)] transition hover:-translate-y-0.5 hover:bg-white"
             onClick={onStartOver}
             type="button"
           >
-            Analyze another repo
+            Start a new workspace
           </button>
         </aside>
 
-        <main className="ml-[240px] flex-1">
+        <main className="ml-[280px] flex-1">
           <div className="mx-auto max-w-7xl px-8 py-8">
-            <div className="mb-8 flex items-center justify-between">
+            <div className="mb-8 space-y-6">
+              <RepoHeader
+                name={projectName}
+                repoUrl={activeProject.status?.github_url || activeProject.repoUrl}
+                status={activeProject.status?.status || 'submitted'}
+              />
+
               {!chatOpen ? (
                 <div className="inline-flex rounded-full border border-[#629bb5]/30 bg-white/80 p-1 shadow-[0_12px_30px_rgba(68,127,152,0.12)]">
                   {tabs.map((tab) => (
@@ -104,8 +198,8 @@ export default function Dashboard({
                       key={tab.id}
                       className={`inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition ${
                         activeTab === tab.id
-                          ? 'bg-[#447f98] text-white'
-                          : 'text-[#447f98] hover:bg-[#d6ebf3]'
+                          ? 'bg-[#447f98] text-white shadow-[0_10px_24px_rgba(68,127,152,0.2)]'
+                          : 'text-[#447f98] hover:bg-[#d6ebf3] hover:text-[#1c4659]'
                       }`}
                       onClick={() => setActiveTab(tab.id)}
                       type="button"
@@ -117,7 +211,7 @@ export default function Dashboard({
                 </div>
               ) : (
                 <button
-                  className="inline-flex items-center gap-2 rounded-full border border-[#629bb5]/30 bg-white/85 px-4 py-3 text-sm font-semibold text-[#447f98]"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-[#d6ebf3] px-4 py-3 text-sm font-semibold text-[#224e63] shadow-[0_10px_24px_rgba(68,127,152,0.12)] transition hover:-translate-y-0.5 hover:bg-white"
                   onClick={() => setChatOpen(false)}
                   type="button"
                 >
@@ -127,35 +221,15 @@ export default function Dashboard({
               )}
             </div>
 
-            {!chatOpen && (
-              <>
-                {activeTab === 'documentation' && (
-                  <DocumentationFrame markdown={documentation?.markdown ?? null} />
-                )}
-                {activeTab === 'modules' && <ModuleGrid modules={modules} />}
-                {activeTab === 'architecture' && (
-                  <MermaidPanel
-                    description={documentation?.content?.architecture.description}
-                    mermaid={documentation?.content?.architecture.mermaid}
-                    title={documentation?.content?.architecture.title || 'Architecture'}
-                  />
-                )}
-                {activeTab === 'flow' && (
-                  <MermaidPanel
-                    description={documentation?.content?.flow.description}
-                    mermaid={documentation?.content?.flow.mermaid}
-                    title={documentation?.content?.flow.title || 'Flow chart'}
-                  />
-                )}
-              </>
-            )}
+            {!chatOpen && renderWorkspace()}
 
             {chatOpen && (
-              <div className="h-[calc(100vh-120px)] overflow-hidden rounded-[30px] border border-[#629bb5]/30 shadow-[0_18px_40px_rgba(68,127,152,0.14)]">
+              <div className="h-[calc(100vh-220px)] overflow-hidden rounded-[30px] border border-[#629bb5]/30 shadow-[0_18px_40px_rgba(68,127,152,0.14)]">
                 <QuestionPanel
-                  history={qaHistory}
+                  history={activeProject.qaHistory}
                   onAsk={onAskQuestion}
                   onClose={() => setChatOpen(false)}
+                  projectName={projectName}
                 />
               </div>
             )}

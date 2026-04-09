@@ -6,6 +6,7 @@ interface QuestionPanelProps {
   history: QAPair[];
   onAsk: (question: string) => Promise<void>;
   onClose: () => void;
+  projectName: string;
 }
 
 const prompts = [
@@ -18,6 +19,7 @@ export default function QuestionPanel({
   history,
   onAsk,
   onClose,
+  projectName,
 }: QuestionPanelProps) {
   const [input, setInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -63,8 +65,8 @@ export default function QuestionPanel({
         <div className="flex items-center gap-3">
           <MessageSquare className="text-[#d6ebf3]" size={18} />
           <div>
-            <h2 className="text-lg font-semibold text-white">Ask about this repo</h2>
-            <p className="text-xs text-[#dadee1]">Repo-specific Q&amp;A</p>
+            <h2 className="text-lg font-semibold text-white">Ask about {projectName}</h2>
+            <p className="text-xs text-[#dadee1]">Project-specific Q&amp;A</p>
           </div>
         </div>
         <button
@@ -127,7 +129,7 @@ export default function QuestionPanel({
             value={input}
           />
           <button
-            className="rounded-full bg-[#629bb5] p-2 text-white transition hover:bg-[#447f98] disabled:opacity-50"
+            className="rounded-full border border-white/75 bg-[#d6ebf3] p-2 text-[#224e63] shadow-[0_10px_20px_rgba(68,127,152,0.14)] transition hover:bg-white"
             disabled={!input.trim() || submitting}
             type="submit"
           >

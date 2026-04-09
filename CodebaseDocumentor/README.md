@@ -2,7 +2,7 @@
 
 FastAPI service that:
 
-- accepts a GitHub repository URL
+- accepts one or more GitHub repository URLs
 - clones and chunks the repository
 - stores module content and embeddings
 - generates module summaries and project documentation
@@ -67,7 +67,11 @@ npm run dev
 ## API
 
 - `POST /api/v1/repositories`
+  Accepts `github_url` for a single repository or `github_urls` for multiple repositories.
+  Each submitted repository is processed and stored independently.
 - `GET /api/v1/repositories/{repo_id}`
 - `GET /api/v1/repositories/{repo_id}/modules`
 - `GET /api/v1/repositories/{repo_id}/documentation`
 - `POST /api/v1/repositories/{repo_id}/query`
+  Query remains scoped to a single `repo_id`, which lets the frontend switch between
+  projects while continuing to reuse the same documentation/modules/query endpoints.

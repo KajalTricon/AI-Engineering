@@ -15,6 +15,10 @@ IGNORE_DIRS = {
     "venv",
     "dist",
     "build",
+    ".vscode",
+    ".gitignore",
+    ".git-ignore",
+    ".idea",
 }
 
 
@@ -33,6 +37,7 @@ EXTENSIONS = {
     ".java": "java",
     ".go": "go",
     ".rs": "rust",
+    ".ipynb": "jupyter",
 }
 
 

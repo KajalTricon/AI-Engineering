@@ -82,6 +82,30 @@ async def submit_repository(
     )
 
 
+def validate_submission_urls(
+    github_urls: Iterable[str],
+) -> list[str]:
+    normalized_urls: list[str] = []
+    seen_urls: set[str] = set()
+
+    for github_url in github_urls:
+        try:
+            normalized_url = normalize_github_url(github_url)
+        except ValueError as exc:
+            raise bad_request(str(exc)) from exc
+
+        if normalized_url in seen_urls:
+            continue
+
+        seen_urls.add(normalized_url)
+        normalized_urls.append(normalized_url)
+
+    if not normalized_urls:
+        raise bad_request("At least one valid GitHub repository URL is required.")
+
+    return normalized_urls
+
+
 # ----------------------------
 # get status
 # ----------------------------

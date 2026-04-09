@@ -27,9 +27,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function submitRepository(githubUrl: string) {
+  return submitRepositories([githubUrl]);
+}
+
+export function submitRepositories(githubUrls: string[]) {
   return request<SubmitRepoResponse>('/repositories', {
     method: 'POST',
-    body: JSON.stringify({ github_url: githubUrl }),
+    body: JSON.stringify({
+      github_urls: githubUrls,
+    }),
   });
 }
 

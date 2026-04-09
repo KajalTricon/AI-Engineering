@@ -4,7 +4,8 @@ Query service (RAG)
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.ai import get_llm
+from app.core.ai import UserFacingAIError, invoke_llm
+from app.core.exceptions import service_unavailable
 from app.schemas.query import (
     QueryResponse,
     QuerySource,
@@ -49,10 +50,17 @@ Retrieved context:
 {context}
 """
 
-    res = await get_llm().ainvoke(prompt)
+    try:
+        answer = await invoke_llm(
+            prompt,
+            label="repository_query",
+            repo_id=repo_id,
+        )
+    except UserFacingAIError as exc:
+        raise service_unavailable(str(exc)) from exc
 
     return QueryResponse(
-        answer=res.content,
+        answer=answer,
         sources=[
             QuerySource(
                 module=r["module_name"],

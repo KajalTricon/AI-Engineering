@@ -26,6 +26,8 @@ class ModuleAnalysisState(TypedDict):
     analysis: str
 
     iterations: int
+    
+    title: str
 
     summary: str
 

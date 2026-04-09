@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=settings.static_path), name="static")
 
     app.include_router(api_router)
-
+    
     @app.get("/health")
     async def health():
         return {"status": "ok"}

@@ -1,35 +1,42 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Github } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 import ProgressTracker from '../components/ProgressTracker';
-import { RepoStatusResponse } from '../types';
+import { ProjectWorkspace } from '../types';
 
 interface HomeProps {
   error: string | null;
   isSubmitting: boolean;
-  onReset: () => void;
-  onSubmit: (url: string) => Promise<void>;
-  repoUrl: string;
-  status: RepoStatusResponse | null;
+  onSubmit: (urls: string) => Promise<void>;
+  projects: ProjectWorkspace[];
 }
 
 export default function Home({
   error,
   isSubmitting,
-  onReset,
   onSubmit,
-  repoUrl,
-  status,
+  projects,
 }: HomeProps) {
-  const [url, setUrl] = useState(repoUrl);
+  const [urls, setUrls] = useState('https://github.com/tricon-ai/codedoc');
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const element = textareaRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    element.style.height = '0px';
+    const nextHeight = Math.min(Math.max(element.scrollHeight, 38), 220);
+    element.style.height = `${nextHeight}px`;
+  }, [urls]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!url.trim() || isSubmitting) return;
-    await onSubmit(url.trim());
+    if (!urls.trim() || isSubmitting) return;
+    await onSubmit(urls);
   };
-
-  const showProgress = Boolean(repoUrl);
 
   return (
     <div className="min-h-screen bg-[#447f98]">
@@ -37,43 +44,62 @@ export default function Home({
         <main className="flex flex-1 flex-col items-center justify-center">
           <div className="w-full max-w-3xl text-center">
             <h1 className="text-5xl font-semibold tracking-tight text-white sm:text-6xl">
-              Documentation that writes itself.
+              Analyze, Understand, Document - All in One
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#dadee1]">
-              Paste a GitHub URL. Get structured docs, module summaries, and a live
-              Q&amp;A interface powered by AI agents.
+              Get structured docs, module summaries, diagrams, and project-specific
+              Q&amp;A in one workspace.
             </p>
 
-            <form className="mt-10" onSubmit={handleSubmit}>
-              <div className="rounded-full border border-[#629bb5]/45 bg-[#447f98] px-3 py-3 shadow-[0_16px_45px_rgba(0,0,0,0.18)]">
-                <div className="flex items-center rounded-full border border-[#629bb5]/35 bg-[#447f98]/95 px-4 py-2 focus-within:shadow-[0_0_0_4px_rgba(98,155,181,0.4)]">
-                  <Github className="mr-3 text-[#dadee1]" size={18} />
-                  <input
-                    className="min-w-0 flex-1 bg-transparent py-3 text-base text-white outline-none placeholder:text-[#b9d8e1]"
-                    onChange={(event) => setUrl(event.target.value)}
-                    placeholder="https://github.com/username/repository"
-                    value={url}
-                  />
-                  <button
-                    className="rounded-full bg-[#629bb5] px-6 py-3 text-sm font-semibold text-[#447f98] transition hover:bg-[#d6ebf3] disabled:cursor-not-allowed disabled:opacity-70"
-                    disabled={!url.trim() || isSubmitting}
-                    type="submit"
-                  >
-                    {showProgress ? 'Re-run →' : 'Analyze repo →'}
-                  </button>
+            <div className="mt-10 flex flex-col items-start justify-center gap-6">
+              <form className="w-full flex-1" onSubmit={handleSubmit}>
+                <div className="mx-auto max-w-[760px]">
+                  <div className="rounded-[20px] bg-[#4f87a1] px-4 py-3.5 shadow-[0_14px_34px_rgba(0,0,0,0.12)]">
+                    <div className="rounded-[16px] bg-[#4f87a1] px-3 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <Github className="text-[#dadee1]" size={17} />
+                        <p className="text-sm font-medium text-[#dadee1]">
+                          Add your repos
+                        </p>
+                      </div>
+                      <textarea
+                        ref={textareaRef}
+                        className="mt-2 w-full resize-none overflow-hidden bg-transparent text-[15px] leading-6 text-white outline-none placeholder:text-[#b9d8e1]"
+                        onChange={(event) => setUrls(event.target.value)}
+                        placeholder="https://github.com/username/repository-one"
+                        rows={1}
+                        value={urls}
+                      />
+
+                      <div className="mt-3 flex justify-start">
+                        <button
+                          className="rounded-full bg-[#d6ebf3] px-5 py-2.5 text-sm font-semibold text-[#224e63] shadow-[0_10px_22px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5 hover:bg-white"
+                          disabled={!urls.trim() || isSubmitting}
+                          type="submit"
+                        >
+                          {isSubmitting ? 'Starting workspace...' : 'Analyze projects →'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              </form>
+            </div>
+
+            {(isSubmitting || projects.length > 0) && (
+              <div className="mt-8 text-left">
+                <ProgressTracker projects={projects} />
               </div>
-            </form>
+            )}
 
-            <p className="mt-4 text-sm text-[#b9d8e1]">
-              Supports Python, JavaScript, TypeScript, Java, Go, Rust and more
+            <p className="mt-5 text-sm text-[#b9d8e1]">
+              Supports single-repo and multi-repo workspaces across Python,
+              JavaScript, TypeScript, Java, Go, Rust and more
             </p>
-
-            {showProgress && <ProgressTracker status={status} />}
 
             {error && (
               <div className="mt-8 text-left">
-                <ErrorState message={error} onRetry={onReset} />
+                <ErrorState message={error} />
               </div>
             )}
           </div>

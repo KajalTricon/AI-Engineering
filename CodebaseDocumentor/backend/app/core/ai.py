@@ -5,6 +5,7 @@ Shared AI client helpers.
 from functools import lru_cache
 from typing import Any, TypeVar
 
+from google.api_core.exceptions import ResourceExhausted, TooManyRequests
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -17,6 +18,47 @@ from app.core.settings import settings
 ModelT = TypeVar("ModelT", bound=BaseModel)
 logger = get_logger("codebase_documentor.llm")
 _CALL_COUNTER = 0
+_QUOTA_ERROR_MESSAGE = "AI quota exceeded for this project. Please retry later or check billing/API limits."
+
+
+class UserFacingAIError(RuntimeError):
+    """
+    AI error that is safe to show directly in the UI.
+    """
+
+
+def _extract_user_facing_ai_error(exc: Exception) -> str | None:
+    raw_message = " ".join(
+        str(part)
+        for part in getattr(exc, "args", ())
+        if part is not None
+    ).strip() or str(exc)
+
+    normalized = raw_message.lower()
+    quota_markers = (
+        "quota exceeded",
+        "rate limit",
+        "rate limits",
+        "resourceexhausted",
+        "too many requests",
+        "429",
+        "generate_content_free_tier_requests",
+    )
+
+    if isinstance(exc, (ResourceExhausted, TooManyRequests)):
+        return _QUOTA_ERROR_MESSAGE
+
+    if any(marker in normalized for marker in quota_markers):
+        return _QUOTA_ERROR_MESSAGE
+
+    return None
+
+
+def _raise_if_user_facing_ai_error(exc: Exception) -> None:
+    message = _extract_user_facing_ai_error(exc)
+
+    if message:
+        raise UserFacingAIError(message) from exc
 
 
 @lru_cache(maxsize=1)
@@ -74,7 +116,24 @@ async def invoke_llm(
     repo_id: str | None = None,
 ) -> str:
     call_id = _next_call_id()
-    response = await get_llm().ainvoke(prompt)
+    logger.info(
+        "llm_call_start id=%s label=%s repo_id=%s",
+        call_id,
+        label,
+        repo_id or "-",
+    )
+    try:
+        response = await get_llm().ainvoke(prompt)
+    except Exception as exc:
+        logger.exception(
+            "llm_call_failed id=%s label=%s repo_id=%s",
+            call_id,
+            label,
+            repo_id or "-",
+        )
+        _raise_if_user_facing_ai_error(exc)
+        raise
+
     _log_llm_call(
         call_id=call_id,
         label=label,
@@ -101,7 +160,26 @@ async def generate_structured_output(
     )
     rendered_prompt = await prompt_template.ainvoke({"task": prompt})
     call_id = _next_call_id()
-    response = await get_llm().ainvoke(rendered_prompt)
+    logger.info(
+        "llm_structured_call_start id=%s label=%s repo_id=%s schema=%s",
+        call_id,
+        label,
+        repo_id or "-",
+        schema.__name__,
+    )
+    try:
+        response = await get_llm().ainvoke(rendered_prompt)
+    except Exception as exc:
+        logger.exception(
+            "llm_structured_call_failed id=%s label=%s repo_id=%s schema=%s",
+            call_id,
+            label,
+            repo_id or "-",
+            schema.__name__,
+        )
+        _raise_if_user_facing_ai_error(exc)
+        raise
+
     _log_llm_call(
         call_id=call_id,
         label=label,

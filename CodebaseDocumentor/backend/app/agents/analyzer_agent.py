@@ -56,8 +56,9 @@ def build_module_excerpt(full_content: str) -> str:
 # ----------------------------------------
 # analyze
 # ----------------------------------------
+from langsmith import traceable
 
-
+@traceable(name="module_analysis")
 async def analyze_module(
     state: ModuleAnalysisState,
 ):
@@ -101,7 +102,7 @@ Write a detailed factual analysis of:
 # summary
 # ----------------------------------------
 
-
+@traceable(name="summary_generation")
 async def generate_summary(
     state: ModuleAnalysisState,
 ):
@@ -109,6 +110,12 @@ async def generate_summary(
 Convert the module analysis into structured output.
 Keep it concise, accurate, and grounded in the supplied analysis.
 If information is not supported by the analysis, omit it.
+
+IMPORTANT for the 'title' field:
+- Generate a clear, descriptive title based on the module's PRIMARY purpose
+- Use 2-4 words that describe what this module does (e.g., "API Routes", "Database Models", "User Authentication", "Core Utilities")
+- DO NOT use the module path or technical identifiers
+- Make it human-readable and meaningful
 
 Module name: {state["module_name"]}
 Module path: {state["module_path"]}
@@ -124,10 +131,21 @@ Analysis:
         label="module_summary",
         repo_id=state["repo_id"],
     )
+    # Filter out dots and clean up dependencies
+    cleaned_dependencies = []
+    for dep in res.dependencies[:10]:
+        if dep == ".":
+            # Replace dot with parent directory name from module path
+            parent = state["module_path"].split("/")[0] if "/" in state["module_path"] else state["module_name"].split(".")[0]
+            if parent and parent != ".":
+                cleaned_dependencies.append(parent)
+        elif dep.strip():
+            cleaned_dependencies.append(dep)
 
     return {
+        "title": res.title,
         "summary": res.summary,
-        "dependencies": res.dependencies[:10],
+        "dependencies": list(dict.fromkeys(cleaned_dependencies)),  # Remove duplicates while preserving order
     }
 
 

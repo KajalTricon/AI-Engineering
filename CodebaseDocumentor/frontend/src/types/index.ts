@@ -17,11 +17,23 @@ export type ProcessingStage =
   | 'summarizing'
   | 'documentation';
 
-export interface SubmitRepoResponse {
+export interface SubmittedRepository {
   repo_id: string;
+  github_url: string;
   status: RepoStatus;
   message: string;
   reused: boolean;
+  commit_sha?: string | null;
+}
+
+export interface SubmitRepoResponse {
+  repositories: SubmittedRepository[];
+  total_submitted: number;
+  total_reused: number;
+  repo_id?: string | null;
+  status?: RepoStatus | null;
+  message?: string | null;
+  reused?: boolean | null;
   commit_sha?: string | null;
 }
 
@@ -98,4 +110,16 @@ export interface QAPair {
   question: string;
   answer: string;
   sources: string[];
+}
+
+export interface ProjectWorkspace {
+  repoId: string;
+  repoUrl: string;
+  status: RepoStatusResponse | null;
+  documentation: DocumentationResponse | null;
+  modules: ModuleSummary[];
+  qaHistory: QAPair[];
+  error: string | null;
+  workspaceLoaded: boolean;
+  workspaceLoading: boolean;
 }

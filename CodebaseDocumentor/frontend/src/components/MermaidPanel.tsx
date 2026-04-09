@@ -1,3 +1,5 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 interface MermaidPanelProps {
   title: string;
   description?: string | null;
@@ -44,10 +46,19 @@ export default function MermaidPanel({
 }: MermaidPanelProps) {
   const diagram = mermaid || 'flowchart TD\nA["Diagram unavailable"]';
 
-  return (
+    return (
     <section className="rounded-[28px] border border-[#629bb5]/30 bg-white/95 p-8 shadow-[0_20px_60px_rgba(68,127,152,0.14)]">
       <h2 className="text-2xl font-semibold text-[#447f98]">{title}</h2>
-      {description && <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{description}</p>}
+      {description && (
+        <div className="mt-3 max-w-3xl prose prose-slate prose-sm
+          prose-p:text-slate-600 prose-p:leading-7 prose-p:my-1
+          prose-headings:text-slate-700 prose-headings:font-semibold
+          prose-code:bg-slate-100 prose-code:text-pink-600 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
+          prose-strong:text-slate-700 prose-ul:list-disc prose-ol:list-decimal prose-li:my-0
+          prose-a:text-blue-600">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
+        </div>
+      )}
       <iframe
         className="mt-6 h-[680px] w-full rounded-[24px] border border-[#629bb5]/20 bg-[#d6ebf3]"
         srcDoc={buildMermaidDocument(diagram)}
@@ -55,4 +66,5 @@ export default function MermaidPanel({
       />
     </section>
   );
+ 
 }

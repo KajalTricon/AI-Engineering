@@ -8,7 +8,11 @@ from datetime import datetime
 from sqlalchemy import update
 
 from app.core.db import SessionLocal
+from app.core.logging import get_logger
 from app.models.repository import Repository
+
+
+logger = get_logger("codebase_documentor.status")
 
 
 async def set_status(
@@ -16,6 +20,12 @@ async def set_status(
     status: str,
     error: str | None = None,
 ):
+    logger.info(
+        "repo_status_update repo_id=%s status=%s error=%s",
+        repo_id,
+        status,
+        error or "-",
+    )
 
     async with SessionLocal() as session:
 

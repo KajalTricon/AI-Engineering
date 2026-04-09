@@ -2,10 +2,11 @@
 Repository routes
 """
 
+import asyncio
+
 from fastapi import (
     APIRouter,
     Depends,
-    BackgroundTasks,
     Response,
 )
 
@@ -16,6 +17,7 @@ from app.schemas.repository import (
     SubmitRepoRequest,
     SubmitRepoResponse,
     RepoStatusResponse,
+    SubmittedRepository,
 )
 
 from app.schemas.module import (
@@ -56,31 +58,56 @@ router = APIRouter(
 )
 async def submit_repository(
     body: SubmitRepoRequest,
-    background_tasks: BackgroundTasks,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await repository_service.submit_repository(
-        db,
-        body.github_url,
+    normalized_urls = repository_service.validate_submission_urls(body.urls)
+    results = []
+
+    for github_url in normalized_urls:
+        result = await repository_service.submit_repository(
+            db,
+            github_url,
+        )
+        results.append(result)
+
+        if result.should_process:
+            asyncio.create_task(
+                pipeline_service.process_repository(
+                    str(result.repository.id),
+                    result.repository.github_url,
+                )
+            )
+
+    submitted_repositories = [
+        SubmittedRepository(
+            repo_id=str(result.repository.id),
+            github_url=result.repository.github_url,
+            status=result.repository.status,
+            message=result.message,
+            reused=result.reused,
+            commit_sha=result.commit_sha,
+        )
+        for result in results
+    ]
+
+    primary_repository = (
+        submitted_repositories[0]
+        if len(submitted_repositories) == 1
+        else None
     )
 
-    if result.should_process:
-        response.status_code = 202
-        background_tasks.add_task(
-            pipeline_service.process_repository,
-            str(result.repository.id),
-            result.repository.github_url,
-        )
-    else:
-        response.status_code = 200
+    response.status_code = 202 if any(result.should_process for result in results) else 200
 
     return SubmitRepoResponse(
-        repo_id=str(result.repository.id),
-        status=result.repository.status,
-        message=result.message,
-        reused=result.reused,
-        commit_sha=result.commit_sha,
+        repositories=submitted_repositories,
+        total_submitted=len(submitted_repositories),
+        total_reused=sum(1 for item in submitted_repositories if item.reused),
+        repo_id=primary_repository.repo_id if primary_repository else None,
+        status=primary_repository.status if primary_repository else None,
+        message=primary_repository.message if primary_repository else None,
+        reused=primary_repository.reused if primary_repository else None,
+        commit_sha=primary_repository.commit_sha if primary_repository else None,
     )
 
 

@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     APP_TITLE: str = "Autonomous Codebase Documenter"
     APP_VERSION: str = "1.0.0"
     ENABLE_LLM_LOGS: bool = True
+    
+    LANGCHAIN_API_KEY: str | None = None
+    LANGCHAIN_TRACING_V2: str | None = None
+    LANGCHAIN_PROJECT: str | None = None
 
     model_config = {
         "env_file": ".env",
@@ -44,3 +48,17 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+import os
+
+if settings.LANGCHAIN_API_KEY:
+    os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
+
+if settings.LANGCHAIN_TRACING_V2:
+    os.environ["LANGCHAIN_TRACING_V2"] = settings.LANGCHAIN_TRACING_V2
+
+if settings.LANGCHAIN_PROJECT:
+    os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT
+    
+    
+print(settings.LANGCHAIN_API_KEY)

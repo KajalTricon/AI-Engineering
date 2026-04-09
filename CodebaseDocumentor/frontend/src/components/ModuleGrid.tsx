@@ -1,3 +1,5 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ModuleSummary } from '../types';
 
 interface ModuleGridProps {
@@ -5,6 +7,18 @@ interface ModuleGridProps {
 }
 
 export default function ModuleGrid({ modules }: ModuleGridProps) {
+  if (modules.length === 0) {
+    return (
+      <div className="rounded-[28px] border border-[#629bb5]/30 bg-white/92 p-8 shadow-[0_18px_40px_rgba(68,127,152,0.12)]">
+        <p className="text-lg font-semibold text-[#447f98]">No modules found</p>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+          This project finished processing, but no directory-level modules were
+          extracted for display.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {modules.map((module) => (
@@ -23,9 +37,14 @@ export default function ModuleGrid({ modules }: ModuleGridProps) {
               {module.language || 'unknown'}
             </span>
           </div>
-          <p className="mt-4 text-sm leading-7 text-slate-600">
-            {module.summary || 'Summary not available yet.'}
-          </p>
+            <div className="mt-4 text-sm leading-7 text-slate-600 prose prose-slate prose-sm max-w-none
+                  prose-p:my-1 prose-headings:text-slate-700 prose-headings:font-semibold
+                  prose-code:bg-slate-100 prose-code:text-pink-600 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
+                  prose-strong:text-slate-700 prose-ul:list-disc prose-ol:list-decimal prose-li:my-0">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {module.summary || 'Summary not available yet.'}
+                  </ReactMarkdown>
+            </div>
           {module.dependencies.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {module.dependencies.map((dependency) => (

@@ -6,6 +6,7 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 
 class ModuleSummaryOutput(BaseModel):
+    title: str = Field(description="A clear, human-readable title for this module (e.g., 'API Routes', 'Database Models', 'User Authentication')")
     summary: str = Field(description="A concise grounded summary of the module.")
     responsibilities: list[str] = Field(default_factory=list)
     important_files: list[str] = Field(default_factory=list)

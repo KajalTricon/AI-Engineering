@@ -31,6 +31,7 @@ async def generate_project_documentation(
     prompt = f"""
 Create structured project documentation for this repository.
 Use only the information provided below.
+If module name is coming as "." then Generate a clear, descriptive title based on the module's PRIMARY purpose.
 Do not invent frameworks, libraries, databases, or app names that are not directly supported by the module summaries below.
 If evidence is limited, say so briefly instead of guessing.
 Include Mermaid diagrams that are syntactically valid and conservative.
