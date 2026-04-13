@@ -15,6 +15,7 @@ const statusStyles: Record<string, string> = {
 
 export default function RepoHeader({ name, repoUrl, status }: RepoHeaderProps) {
   const badgeClass = statusStyles[status] ?? statusStyles.pending;
+  const hasRepoUrl = Boolean(repoUrl);
 
   return (
     <div className="border-b border-[#629bb5]/20 pb-5">
@@ -25,14 +26,16 @@ export default function RepoHeader({ name, repoUrl, status }: RepoHeaderProps) {
             {name}
           </h1>
         </div>
-        <a
-          href={repoUrl}
-          rel="noreferrer"
-          target="_blank"
-          className="shrink-0 mt-0.5 text-[#b9d8e1] hover:text-white transition"
-        >
-          <ExternalLink size={14} />
-        </a>
+        {hasRepoUrl && (
+          <a
+            href={repoUrl}
+            rel="noreferrer"
+            target="_blank"
+            className="shrink-0 mt-0.5 text-[#b9d8e1] hover:text-white transition"
+          >
+            <ExternalLink size={14} />
+          </a>
+        )}
       </div>
       <span className={`mt-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${badgeClass}`}>
         {status}
@@ -40,4 +43,3 @@ export default function RepoHeader({ name, repoUrl, status }: RepoHeaderProps) {
     </div>
   );
 }
-

@@ -20,18 +20,32 @@ type Tab = 'documentation' | 'modules' | 'architecture' | 'flow';
 interface DashboardProps {
   activeProject: ProjectWorkspace;
   onAskQuestion: (question: string) => Promise<void>;
-  onSelectProject: (repoId: string) => void;
+  onResumeProject: (projectId: string) => Promise<void>;
+  onSelectProject: (projectId: string) => void;
   onStartOver: () => void;
   projects: ProjectWorkspace[];
 }
 
 function getProjectName(project: ProjectWorkspace) {
-  return project.status?.name || project.repoUrl.split('/').filter(Boolean).pop() || 'repository';
+  return project.status?.name || project.projectName || 'project';
+}
+
+function getProjectSubtitle(project: ProjectWorkspace) {
+  if (project.repositories.length === 0) {
+    return 'No repositories submitted';
+  }
+
+  if (project.repositories.length === 1) {
+    return project.repositories[0].github_url;
+  }
+
+  return `${project.repositories.length} repositories in this project`;
 }
 
 export default function Dashboard({
   activeProject,
   onAskQuestion,
+  onResumeProject,
   onSelectProject,
   onStartOver,
   projects,
@@ -42,7 +56,7 @@ export default function Dashboard({
   useEffect(() => {
     setActiveTab('documentation');
     setChatOpen(false);
-  }, [activeProject.repoId]);
+  }, [activeProject.projectId]);
 
   const projectName = getProjectName(activeProject);
 
@@ -56,9 +70,27 @@ export default function Dashboard({
   const renderWorkspace = () => {
     if (activeProject.status?.status === 'failed') {
       return (
-        <ErrorState
-          message={activeProject.error || activeProject.status.error_message || 'Project processing failed.'}
-        />
+        <div className="space-y-4">
+          <ErrorState
+            message={activeProject.error || activeProject.status.error_message || 'Project processing failed.'}
+          />
+          <div className="flex gap-3">
+            <button
+              className="rounded-full bg-[#447f98] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(68,127,152,0.2)] transition hover:-translate-y-0.5"
+              onClick={() => void onResumeProject(activeProject.projectId)}
+              type="button"
+            >
+              Resume from saved progress
+            </button>
+            <button
+              className="rounded-full border border-[#629bb5]/30 bg-white px-5 py-3 text-sm font-semibold text-[#447f98] transition hover:bg-[#d6ebf3]"
+              onClick={onStartOver}
+              type="button"
+            >
+              Start a new workspace
+            </button>
+          </div>
+        </div>
       );
     }
 
@@ -69,7 +101,7 @@ export default function Dashboard({
             {projectName} is being prepared
           </p>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-            We keep polling the same repository APIs for this project until the
+            We keep polling the project APIs until the
             documentation, modules, and diagrams are ready.
           </p>
         </div>
@@ -83,7 +115,7 @@ export default function Dashboard({
             Loading project workspace
           </p>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-            The repository analysis is complete. We are now loading the generated
+            The project analysis is complete. We are now loading the generated
             documentation and module summaries for this project.
           </p>
         </div>
@@ -130,18 +162,18 @@ export default function Dashboard({
 
           <div className="mt-6 max-h-[54vh] space-y-2 overflow-y-auto pr-1">
             {projects.map((project) => {
-              const isActive = project.repoId === activeProject.repoId;
+              const isActive = project.projectId === activeProject.projectId;
               const statusLabel = project.status?.status || 'submitted';
 
               return (
                 <button
-                  key={project.repoId}
+                  key={project.projectId}
                   className={`w-full rounded-[22px] border px-4 py-4 text-left transition ${
                     isActive
                       ? 'border-[#d6ebf3] bg-[#629bb5]/28'
                       : 'border-[#629bb5]/20 bg-[#629bb5]/10 hover:bg-[#629bb5]/18'
                   }`}
-                  onClick={() => onSelectProject(project.repoId)}
+                  onClick={() => onSelectProject(project.projectId)}
                   type="button"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -153,7 +185,7 @@ export default function Dashboard({
                         </p>
                       </div>
                       <p className="mt-2 truncate text-xs text-[#b9d8e1]">
-                        {project.repoUrl}
+                        {getProjectSubtitle(project)}
                       </p>
                     </div>
                     <span className="rounded-full bg-white/14 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6ebf3]">
@@ -187,7 +219,7 @@ export default function Dashboard({
             <div className="mb-8 space-y-6">
               <RepoHeader
                 name={projectName}
-                repoUrl={activeProject.status?.github_url || activeProject.repoUrl}
+                repoUrl={activeProject.repositories[0]?.github_url || ''}
                 status={activeProject.status?.status || 'submitted'}
               />
 

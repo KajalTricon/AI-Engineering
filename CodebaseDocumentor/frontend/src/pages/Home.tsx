@@ -47,7 +47,7 @@ export default function Home({
               Analyze, Understand, Document - All in One
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#dadee1]">
-              Get structured docs, module summaries, diagrams, and project-specific
+              Group one or many repositories into a single project and get structured docs, module summaries, diagrams, and project-specific
               Q&amp;A in one workspace.
             </p>
 
@@ -59,14 +59,14 @@ export default function Home({
                       <div className="flex items-center gap-3">
                         <Github className="text-[#dadee1]" size={17} />
                         <p className="text-sm font-medium text-[#dadee1]">
-                          Add your repos
+                          Add one or more GitHub repos
                         </p>
                       </div>
                       <textarea
                         ref={textareaRef}
                         className="mt-2 w-full resize-none overflow-hidden bg-transparent text-[15px] leading-6 text-white outline-none placeholder:text-[#b9d8e1]"
                         onChange={(event) => setUrls(event.target.value)}
-                        placeholder="https://github.com/username/repository-one"
+                        placeholder={'https://github.com/org/service-one\nhttps://github.com/org/service-two'}
                         rows={1}
                         value={urls}
                       />

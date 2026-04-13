@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 
 class DocumentationResponse(BaseModel):
-    repo_id: str
+    project_id: str
     url: str
     created_at: datetime
     markdown: Optional[str] = None

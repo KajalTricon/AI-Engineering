@@ -31,6 +31,11 @@ export default function ModuleGrid({ modules }: ModuleGridProps) {
               <h3 className="font-mono text-base font-semibold text-[#447f98]">
                 {module.name}
               </h3>
+              {module.repository_name && (
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#7aa3b5]">
+                  {module.repository_name}
+                </p>
+              )}
               <p className="mt-2 break-all text-xs text-slate-500">{module.path}</p>
             </div>
             <span className="rounded-full bg-[#d6ebf3] px-3 py-1 text-xs font-semibold text-[#447f98]">

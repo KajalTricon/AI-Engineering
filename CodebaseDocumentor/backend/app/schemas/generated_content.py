@@ -6,7 +6,7 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 
 class ModuleSummaryOutput(BaseModel):
-    title: str = Field(description="A clear, human-readable title for this module (e.g., 'API Routes', 'Database Models', 'User Authentication')")
+    title: str = Field(description="A clear, human-readable title for this module.")
     summary: str = Field(description="A concise grounded summary of the module.")
     responsibilities: list[str] = Field(default_factory=list)
     important_files: list[str] = Field(default_factory=list)
@@ -20,7 +20,16 @@ class DiagramSection(BaseModel):
     mermaid: str
 
 
+class RepositoryDocumentationSection(BaseModel):
+    name: str
+    github_url: str
+    summary: str
+    key_modules: list[str] = Field(default_factory=list)
+    depends_on: list[str] = Field(default_factory=list)
+
+
 class ModuleDocumentationSection(BaseModel):
+    repository: str
     name: str
     path: str
     summary: str
@@ -35,5 +44,6 @@ class ProjectDocumentationOutput(BaseModel):
     architecture: DiagramSection
     flow: DiagramSection
     setup_notes: list[str] = Field(default_factory=list)
+    repositories: list[RepositoryDocumentationSection] = Field(default_factory=list)
     modules: list[ModuleDocumentationSection] = Field(default_factory=list)
     operational_notes: list[str] = Field(default_factory=list)

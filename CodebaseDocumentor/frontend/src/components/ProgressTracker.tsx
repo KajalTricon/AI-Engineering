@@ -11,7 +11,7 @@ interface ProgressTrackerProps {
 }
 
 function getProjectName(project: ProjectWorkspace) {
-  return project.status?.name || project.repoUrl.split('/').filter(Boolean).pop() || 'repository';
+  return project.status?.name || project.projectName || 'project';
 }
 
 export default function ProgressTracker({ projects }: ProgressTrackerProps) {
@@ -28,7 +28,7 @@ export default function ProgressTracker({ projects }: ProgressTrackerProps) {
     {
       id: 'submitted',
       icon: <Clock3 size={18} />,
-      title: `Submitted ${totalCount} ${totalCount === 1 ? 'repository' : 'repositories'}`,
+      title: `Submitted ${totalCount} ${totalCount === 1 ? 'project' : 'projects'}`,
       tone: 'text-[#d6ebf3]',
       done: true,
     },
@@ -38,7 +38,7 @@ export default function ProgressTracker({ projects }: ProgressTrackerProps) {
 
       if (status === 'completed') {
         return {
-          id: project.repoId,
+          id: project.projectId,
           icon: <CheckCircle2 size={18} />,
           title: `${getProjectName(project)} completed`,
           tone: 'text-[#d6ebf3]',
@@ -48,7 +48,7 @@ export default function ProgressTracker({ projects }: ProgressTrackerProps) {
 
       if (status === 'failed') {
         return {
-          id: project.repoId,
+          id: project.projectId,
           icon: <AlertCircle size={18} />,
           title: `${getProjectName(project)} failed`,
           subtitle: project.error || project.status?.error_message || 'Processing stopped before completion.',
@@ -58,7 +58,7 @@ export default function ProgressTracker({ projects }: ProgressTrackerProps) {
       }
 
       return {
-        id: project.repoId,
+        id: project.projectId,
         icon: <Loader2 className="animate-spin" size={18} />,
         title: `${getProjectName(project)} ${statusLabel}`,
         subtitle: 'Generating summaries and documentation',
@@ -73,7 +73,7 @@ export default function ProgressTracker({ projects }: ProgressTrackerProps) {
         ? 'Done'
         : failedCount > 0
           ? 'Waiting for successful completion'
-          : `Waiting for ${totalCount - completedCount} ${totalCount - completedCount === 1 ? 'repository' : 'repositories'}`,
+          : `Waiting for ${totalCount - completedCount} ${totalCount - completedCount === 1 ? 'project' : 'projects'}`,
       tone: allCompleted ? 'text-[#d6ebf3]' : 'text-[#b9d8e1]',
       done: allCompleted,
     },

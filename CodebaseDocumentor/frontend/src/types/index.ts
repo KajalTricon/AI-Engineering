@@ -20,37 +20,35 @@ export type ProcessingStage =
 export interface SubmittedRepository {
   repo_id: string;
   github_url: string;
+  name?: string | null;
+  status: RepoStatus;
+  commit_sha?: string | null;
+}
+
+export interface SubmitProjectResponse {
+  project_id: string;
+  name: string;
   status: RepoStatus;
   message: string;
-  reused: boolean;
-  commit_sha?: string | null;
-}
-
-export interface SubmitRepoResponse {
   repositories: SubmittedRepository[];
-  total_submitted: number;
-  total_reused: number;
-  repo_id?: string | null;
-  status?: RepoStatus | null;
-  message?: string | null;
-  reused?: boolean | null;
-  commit_sha?: string | null;
+  total_repositories: number;
 }
 
-export interface RepoStatusResponse {
-  repo_id: string;
-  github_url: string;
-  name?: string | null;
-  normalized_url?: string | null;
-  commit_sha?: string | null;
+export interface ProjectStatusResponse {
+  project_id: string;
+  name: string;
   status: RepoStatus;
   error_message?: string | null;
+  repository_count: number;
   created_at: string;
   updated_at: string;
+  repositories: SubmittedRepository[];
 }
 
 export interface ModuleSummary {
   module_id: string;
+  repository_id: string;
+  repository_name?: string | null;
   path: string;
   name: string;
   language?: string | null;
@@ -59,13 +57,13 @@ export interface ModuleSummary {
 }
 
 export interface ModulesResponse {
-  repo_id: string;
+  project_id: string;
   total_modules: number;
   modules: ModuleSummary[];
 }
 
 export interface DocumentationResponse {
-  repo_id: string;
+  project_id: string;
   url: string;
   created_at: string;
   markdown?: string | null;
@@ -83,7 +81,15 @@ export interface DocumentationResponse {
       mermaid: string;
     };
     setup_notes: string[];
+    repositories: Array<{
+      name: string;
+      github_url: string;
+      summary: string;
+      key_modules: string[];
+      depends_on: string[];
+    }>;
     modules: Array<{
+      repository: string;
       name: string;
       path: string;
       summary: string;
@@ -96,6 +102,7 @@ export interface DocumentationResponse {
 }
 
 export interface QuerySource {
+  repository: string;
   module: string;
   path: string;
 }
@@ -113,9 +120,10 @@ export interface QAPair {
 }
 
 export interface ProjectWorkspace {
-  repoId: string;
-  repoUrl: string;
-  status: RepoStatusResponse | null;
+  projectId: string;
+  projectName: string;
+  repositories: SubmittedRepository[];
+  status: ProjectStatusResponse | null;
   documentation: DocumentationResponse | null;
   modules: ModuleSummary[];
   qaHistory: QAPair[];

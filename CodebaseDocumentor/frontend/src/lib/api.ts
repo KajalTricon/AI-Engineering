@@ -1,9 +1,9 @@
 import {
   DocumentationResponse,
   ModulesResponse,
+  ProjectStatusResponse,
   QueryResponse,
-  RepoStatusResponse,
-  SubmitRepoResponse,
+  SubmitProjectResponse,
 } from '../types';
 
 const API_BASE_URL =
@@ -26,34 +26,37 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function submitRepository(githubUrl: string) {
-  return submitRepositories([githubUrl]);
-}
-
-export function submitRepositories(githubUrls: string[]) {
-  return request<SubmitRepoResponse>('/repositories', {
+export function submitProject(githubUrls: string[], projectName?: string) {
+  return request<SubmitProjectResponse>('/projects', {
     method: 'POST',
     body: JSON.stringify({
+      project_name: projectName,
       github_urls: githubUrls,
     }),
   });
 }
 
-export function getRepositoryStatus(repoId: string) {
-  return request<RepoStatusResponse>(`/repositories/${repoId}`);
+export function getProjectStatus(projectId: string) {
+  return request<ProjectStatusResponse>(`/projects/${projectId}`);
 }
 
-export function getRepositoryModules(repoId: string) {
-  return request<ModulesResponse>(`/repositories/${repoId}/modules`);
+export function getProjectModules(projectId: string) {
+  return request<ModulesResponse>(`/projects/${projectId}/modules`);
 }
 
-export function getRepositoryDocumentation(repoId: string) {
-  return request<DocumentationResponse>(`/repositories/${repoId}/documentation`);
+export function getProjectDocumentation(projectId: string) {
+  return request<DocumentationResponse>(`/projects/${projectId}/documentation`);
 }
 
-export function queryRepository(repoId: string, question: string) {
-  return request<QueryResponse>(`/repositories/${repoId}/query`, {
+export function queryProject(projectId: string, question: string) {
+  return request<QueryResponse>(`/projects/${projectId}/query`, {
     method: 'POST',
     body: JSON.stringify({ question }),
+  });
+}
+
+export function resumeProject(projectId: string) {
+  return request<ProjectStatusResponse>(`/projects/${projectId}/resume`, {
+    method: 'POST',
   });
 }

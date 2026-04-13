@@ -8,27 +8,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.documentation import Documentation
-from app.schemas.generated_content import ProjectDocumentationOutput
 from app.schemas.documentation import DocumentationResponse
+from app.schemas.generated_content import ProjectDocumentationOutput
+from app.services import project_service
 from app.utils.static_site import create_static_site, render_documentation_markdown
-from app.services import repository_service
 
 
-async def get_docs(
-    db: AsyncSession,
-    repo_id: str,
-) -> DocumentationResponse:
-    repo = await repository_service.get_repository(db, repo_id)
-    repository_service.require_completed(repo)
+async def get_docs(db: AsyncSession, project_id: str) -> DocumentationResponse:
+    project = await project_service.get_project(db, project_id)
+    project_service.require_completed(project)
 
-    result = await db.execute(
-        select(Documentation).where(
-            Documentation.repository_id == repo.id
-        )
-    )
-
+    result = await db.execute(select(Documentation).where(Documentation.project_id == project.id))
     docs = result.scalar_one()
-
     content = docs.content
 
     parsed_model = None
@@ -36,10 +27,7 @@ async def get_docs(
 
     try:
         parsed_model = ProjectDocumentationOutput.parse_obj(json.loads(content))
-        markdown = render_documentation_markdown(
-            parsed_model,
-            include_diagrams=False,
-        )
+        markdown = render_documentation_markdown(parsed_model, include_diagrams=False)
         parsed_content = parsed_model
     except Exception:
         parsed_content = content
@@ -48,7 +36,7 @@ async def get_docs(
     url = create_static_site(parsed_content)
 
     return DocumentationResponse(
-        repo_id=repo_id,
+        project_id=project_id,
         url=url,
         created_at=docs.created_at,
         markdown=markdown,

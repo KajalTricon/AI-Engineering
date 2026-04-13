@@ -5,121 +5,155 @@ Module processing
 import uuid
 from typing import Iterable
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 
+from app.agents.analyzer_agent import build_analyzer_agent
 from app.core.db import SessionLocal
 from app.core.logging import get_logger
 from app.models.module import Module
-
 from app.vector.vector_store import store_module
-from app.agents.analyzer_agent import build_analyzer_agent
 
 
 logger = get_logger("codebase_documentor.modules")
 
 
-async def store_modules(
-    repo_id: str,
-    chunks,
-) -> list[dict]:
-    repository_id = uuid.UUID(repo_id)
-    stored_modules: list[dict] = []
-    chunk_count = len(chunks)
+async def store_modules(project_id: str, repo_id: str, repository_name: str, chunks) -> list[dict]:
+    project_uuid = uuid.UUID(project_id)
+    repository_uuid = uuid.UUID(repo_id)
 
     logger.info(
-        "store_modules_start repo_id=%s chunk_count=%s",
+        "store_modules_start project_id=%s repo_id=%s chunk_count=%s",
+        project_id,
         repo_id,
-        chunk_count,
+        len(chunks),
     )
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            select(Module).where(Module.repository_id == repository_uuid)
+        )
+        existing_modules = {
+            module.path: module
+            for module in result.scalars().all()
+        }
+
+        stored_modules: list[dict] = []
+
         for index, chunk in enumerate(chunks, start=1):
             clean_content = chunk.full_content.replace("\x00", "")
-            logger.info(
-                "store_module_row repo_id=%s index=%s/%s path=%s language=%s",
-                repo_id,
-                index,
-                chunk_count,
-                chunk.path,
-                chunk.language or "unknown",
-            )
-            module = Module(
-                repository_id=repository_id,
-                name=chunk.name,
-                path=chunk.path,
-                language=chunk.language,
-                full_content=clean_content,
-            )
+            existing = existing_modules.get(chunk.path)
 
-            session.add(module)
-            await session.flush()
+            if existing is None:
+                logger.info(
+                    "store_module_row project_id=%s repo_id=%s index=%s/%s repo=%s path=%s action=insert",
+                    project_id,
+                    repo_id,
+                    index,
+                    len(chunks),
+                    repository_name,
+                    chunk.path,
+                )
+                existing = Module(
+                    project_id=project_uuid,
+                    repository_id=repository_uuid,
+                    repository_name=repository_name,
+                    name=chunk.name,
+                    path=chunk.path,
+                    language=chunk.language,
+                    full_content=clean_content,
+                )
+                session.add(existing)
+                await session.flush()
+                await store_module(
+                    project_id=project_id,
+                    repo_id=repo_id,
+                    repository_name=repository_name,
+                    module_id=str(existing.id),
+                    module_name=existing.name,
+                    module_path=existing.path,
+                    language=existing.language or "unknown",
+                    full_content=clean_content,
+                )
+            else:
+                logger.info(
+                    "store_module_row project_id=%s repo_id=%s index=%s/%s repo=%s path=%s action=reuse",
+                    project_id,
+                    repo_id,
+                    index,
+                    len(chunks),
+                    repository_name,
+                    chunk.path,
+                )
+                if not existing.full_content:
+                    existing.full_content = clean_content
+                if not existing.language:
+                    existing.language = chunk.language
+                if not existing.repository_name:
+                    existing.repository_name = repository_name
 
             stored_modules.append(
                 {
-                    "module_id": str(module.id),
-                    "module_name": module.name,
-                    "module_path": module.path,
-                    "language": module.language,
-                    "full_content": clean_content,
+                    "project_id": project_id,
+                    "repository_id": repo_id,
+                    "repository_name": repository_name,
+                    "module_id": str(existing.id),
+                    "module_name": existing.name,
+                    "module_path": existing.path,
+                    "language": existing.language or chunk.language or "unknown",
+                    "full_content": existing.full_content or clean_content,
                     "source_files": chunk.source_files,
+                    "summary": existing.summary,
+                    "dependencies": existing.dependencies or [],
                 }
             )
 
         await session.commit()
 
-    for index, module in enumerate(stored_modules, start=1):
-        logger.info(
-            "store_module_embedding repo_id=%s index=%s/%s module_id=%s path=%s",
-            repo_id,
-            index,
-            len(stored_modules),
-            module["module_id"],
-            module["module_path"],
-        )
-        await store_module(
-            repo_id=repo_id,
-            module_id=module["module_id"],
-            module_name=module["module_name"],
-            module_path=module["module_path"],
-            language=module["language"] or "unknown",
-            full_content=module["full_content"],
-        )
-
-    logger.info(
-        "store_modules_complete repo_id=%s stored_count=%s",
-        repo_id,
-        len(stored_modules),
-    )
-
     return stored_modules
 
 
-async def analyze_modules(
-    repo_id: str,
-    modules: Iterable[dict],
-) -> list[dict]:
+async def analyze_modules(project_id: str, repo_id: str, repository_name: str, modules: Iterable[dict]) -> list[dict]:
     agent = build_analyzer_agent()
-    summaries = []
     module_list = list(modules)
+    summaries: list[dict] = []
 
     logger.info(
-        "analyze_modules_start repo_id=%s module_count=%s",
+        "analyze_modules_start project_id=%s repo_id=%s module_count=%s",
+        project_id,
         repo_id,
         len(module_list),
     )
 
     for index, module in enumerate(module_list, start=1):
-        logger.info(
-            "module_analysis_start repo_id=%s index=%s/%s module_id=%s path=%s",
-            repo_id,
-            index,
-            len(module_list),
-            module["module_id"],
-            module["module_path"],
-        )
+        if module.get("summary"):
+            summaries.append(
+                {
+                    "repository": repository_name,
+                    "repository_id": repo_id,
+                    "name": module["module_name"],
+                    "path": module["module_path"],
+                    "summary": module["summary"],
+                    "dependencies": module.get("dependencies", []),
+                    "responsibilities": module.get("responsibilities", []),
+                    "important_files": module.get("important_files", []),
+                    "source_files": module.get("source_files", []),
+                }
+            )
+            logger.info(
+                "module_analysis_skip project_id=%s repo_id=%s index=%s/%s path=%s reason=already_summarized",
+                project_id,
+                repo_id,
+                index,
+                len(module_list),
+                module["module_path"],
+            )
+            continue
+
         result = await agent.ainvoke(
             {
-                "repo_id": repo_id,
+                "project_id": project_id,
+                "repository_id": repo_id,
+                "repository_name": repository_name,
                 "module_id": module["module_id"],
                 "module_name": module["module_name"],
                 "module_path": module["module_path"],
@@ -131,55 +165,71 @@ async def analyze_modules(
                 "title": "",
                 "summary": "",
                 "dependencies": [],
+                "responsibilities": [],
+                "important_files": [],
                 "iterations": 0,
             }
-        )
-
-        title = result.get("title", module["module_name"])  # Fallback to original name
-        summary = result["summary"]
-        deps = result["dependencies"]
-
-        logger.info(
-            "module_analysis_complete repo_id=%s index=%s/%s module_id=%s path=%s summary_chars=%s dependency_count=%s",
-            repo_id,
-            index,
-            len(module_list),
-            module["module_id"],
-            module["module_path"],
-            len(summary or ""),
-            len(deps or []),
         )
 
         async with SessionLocal() as session:
             await session.execute(
                 update(Module)
-                .where(
-                    Module.id
-                    == uuid.UUID(module["module_id"])
-                )
+                .where(Module.id == uuid.UUID(module["module_id"]))
                 .values(
-                    name=title,
-                    summary=summary,
-                    dependencies=deps,
+                    name=result["title"],
+                    summary=result["summary"],
+                    dependencies=result["dependencies"],
+                    repository_name=repository_name,
                 )
             )
-
             await session.commit()
 
         summaries.append(
             {
-                "name": title,
+                "repository": repository_name,
+                "repository_id": repo_id,
+                "name": result["title"],
                 "path": module["module_path"],
-                "summary": summary,
-                "dependencies": deps,
+                "summary": result["summary"],
+                "dependencies": result["dependencies"],
+                "responsibilities": result.get("responsibilities", []),
+                "important_files": result.get("important_files", []),
                 "source_files": module.get("source_files", []),
             }
         )
 
-    logger.info(
-        "analyze_modules_complete repo_id=%s summarized_count=%s",
-        repo_id,
-        len(summaries),
-    )
+        logger.info(
+            "module_analysis_complete project_id=%s repo_id=%s index=%s/%s path=%s summary_chars=%s",
+            project_id,
+            repo_id,
+            index,
+            len(module_list),
+            module["module_path"],
+            len(result["summary"] or ""),
+        )
 
     return summaries
+
+
+async def get_repository_module_summaries(repo_id: str, repository_name: str) -> list[dict]:
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(Module).where(Module.repository_id == uuid.UUID(repo_id)).order_by(Module.path)
+        )
+        modules = list(result.scalars().all())
+
+    return [
+        {
+            "repository": repository_name,
+            "repository_id": repo_id,
+            "name": module.name,
+            "path": module.path,
+            "summary": module.summary or "",
+            "dependencies": module.dependencies or [],
+            "responsibilities": [],
+            "important_files": [],
+            "source_files": [],
+        }
+        for module in modules
+        if module.summary
+    ]

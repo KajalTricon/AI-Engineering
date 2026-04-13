@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  getRepositoryDocumentation,
-  getRepositoryModules,
-  getRepositoryStatus,
-  queryRepository,
-  submitRepositories,
+  getProjectDocumentation,
+  getProjectModules,
+  getProjectStatus,
+  queryProject,
+  resumeProject,
+  submitProject,
 } from './lib/api';
 import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
@@ -31,11 +32,11 @@ function parseRepositoryUrls(input: string) {
 
 function updateProject(
   projects: ProjectWorkspace[],
-  repoId: string,
+  projectId: string,
   updater: (project: ProjectWorkspace) => ProjectWorkspace,
 ) {
   return projects.map((project) => (
-    project.repoId === repoId ? updater(project) : project
+    project.projectId === projectId ? updater(project) : project
   ));
 }
 
@@ -56,14 +57,14 @@ function App() {
     projectsRef.current = projects;
   }, [projects]);
 
-  const loadProjectWorkspace = async (repoId: string) => {
-    const currentProject = projectsRef.current.find((project) => project.repoId === repoId);
+  const loadProjectWorkspace = async (projectId: string) => {
+    const currentProject = projectsRef.current.find((project) => project.projectId === projectId);
 
     if (!currentProject || currentProject.workspaceLoaded || currentProject.workspaceLoading) {
       return;
     }
 
-    setProjects((previous) => updateProject(previous, repoId, (project) => ({
+    setProjects((previous) => updateProject(previous, projectId, (project) => ({
       ...project,
       workspaceLoading: true,
       error: null,
@@ -71,11 +72,11 @@ function App() {
 
     try {
       const [documentation, modulesResponse] = await Promise.all([
-        getRepositoryDocumentation(repoId),
-        getRepositoryModules(repoId),
+        getProjectDocumentation(projectId),
+        getProjectModules(projectId),
       ]);
 
-      setProjects((previous) => updateProject(previous, repoId, (project) => ({
+      setProjects((previous) => updateProject(previous, projectId, (project) => ({
         ...project,
         documentation,
         modules: modulesResponse.modules,
@@ -84,7 +85,7 @@ function App() {
         error: null,
       })));
     } catch (workspaceError) {
-      setProjects((previous) => updateProject(previous, repoId, (project) => ({
+      setProjects((previous) => updateProject(previous, projectId, (project) => ({
         ...project,
         workspaceLoading: false,
         error:
@@ -95,29 +96,29 @@ function App() {
     }
   };
 
-  const refreshProjectStatus = async (repoId: string) => {
+  const refreshProjectStatus = async (projectId: string) => {
     try {
-      const nextStatus = await getRepositoryStatus(repoId);
+      const nextStatus = await getProjectStatus(projectId);
 
-      setProjects((previous) => updateProject(previous, repoId, (project) => ({
+      setProjects((previous) => updateProject(previous, projectId, (project) => ({
         ...project,
         status: nextStatus,
         error:
           nextStatus.status === 'failed'
-            ? nextStatus.error_message || 'Repository processing failed.'
+            ? nextStatus.error_message || 'Project processing failed.'
             : project.error,
       })));
 
       if (nextStatus.status === 'completed') {
-        await loadProjectWorkspace(repoId);
+        await loadProjectWorkspace(projectId);
       }
     } catch (statusError) {
-      setProjects((previous) => updateProject(previous, repoId, (project) => ({
+      setProjects((previous) => updateProject(previous, projectId, (project) => ({
         ...project,
         error:
           statusError instanceof Error
             ? statusError.message
-            : 'Unable to refresh repository status.',
+            : 'Unable to refresh project status.',
       })));
     }
   };
@@ -130,21 +131,21 @@ function App() {
     let cancelled = false;
 
     const refreshPendingProjects = async () => {
-      const pendingRepoIds = projectsRef.current
+      const pendingProjectIds = projectsRef.current
         .filter((project) => !isTerminalStatus(project.status))
-        .map((project) => project.repoId);
+        .map((project) => project.projectId);
 
-      if (!pendingRepoIds.length) {
+      if (!pendingProjectIds.length) {
         return;
       }
 
       await Promise.all(
-        pendingRepoIds.map(async (repoId) => {
+        pendingProjectIds.map(async (projectId) => {
           if (cancelled) {
             return;
           }
 
-          await refreshProjectStatus(repoId);
+          await refreshProjectStatus(projectId);
         }),
       );
     };
@@ -189,10 +190,11 @@ function App() {
     setError(null);
 
     try {
-      const response = await submitRepositories(githubUrls);
-      const nextProjects: ProjectWorkspace[] = response.repositories.map((repository) => ({
-        repoId: repository.repo_id,
-        repoUrl: repository.github_url,
+      const response = await submitProject(githubUrls);
+      const nextProjects: ProjectWorkspace[] = [{
+        projectId: response.project_id,
+        projectName: response.name,
+        repositories: response.repositories,
         status: null,
         documentation: null,
         modules: [],
@@ -200,22 +202,22 @@ function App() {
         error: null,
         workspaceLoaded: false,
         workspaceLoading: false,
-      }));
+      }];
 
       projectsRef.current = nextProjects;
       setProjects(nextProjects);
-      setActiveProjectId(nextProjects[0]?.repoId ?? null);
+      setActiveProjectId(nextProjects[0]?.projectId ?? null);
 
       await Promise.all(
         nextProjects.map(async (project) => {
-          await refreshProjectStatus(project.repoId);
+          await refreshProjectStatus(project.projectId);
         }),
       );
     } catch (submitError) {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : 'Unable to submit repositories.',
+          : 'Unable to submit project.',
       );
     } finally {
       setSubmitting(false);
@@ -230,7 +232,7 @@ function App() {
     const pairId = `${Date.now()}-${question.length}`;
 
     try {
-      const response = await queryRepository(activeProjectId, question);
+      const response = await queryProject(activeProjectId, question);
 
       setProjects((previous) => updateProject(previous, activeProjectId, (project) => ({
         ...project,
@@ -240,7 +242,9 @@ function App() {
             id: pairId,
             question,
             answer: response.answer,
-            sources: response.sources.map((source) => source.path || source.module),
+            sources: response.sources.map((source) => (
+              [source.repository, source.path || source.module].filter(Boolean).join(' / ')
+            )),
           },
         ],
       })));
@@ -263,17 +267,37 @@ function App() {
     }
   };
 
-  const handleSelectProject = (repoId: string) => {
-    setActiveProjectId(repoId);
+  const handleResumeProject = async (projectId: string) => {
+    try {
+      const nextStatus = await resumeProject(projectId);
+      setProjects((previous) => updateProject(previous, projectId, (project) => ({
+        ...project,
+        status: nextStatus,
+        error: null,
+      })));
+      await refreshProjectStatus(projectId);
+    } catch (resumeError) {
+      setProjects((previous) => updateProject(previous, projectId, (project) => ({
+        ...project,
+        error:
+          resumeError instanceof Error
+            ? resumeError.message
+            : 'Unable to resume this project right now.',
+      })));
+    }
+  };
 
-    const project = projectsRef.current.find((item) => item.repoId === repoId);
+  const handleSelectProject = (projectId: string) => {
+    setActiveProjectId(projectId);
+
+    const project = projectsRef.current.find((item) => item.projectId === projectId);
 
     if (
       project?.status?.status === 'completed'
       && !project.workspaceLoaded
       && !project.workspaceLoading
     ) {
-      void loadProjectWorkspace(repoId);
+      void loadProjectWorkspace(projectId);
     }
   };
 
@@ -285,13 +309,14 @@ function App() {
     setError(null);
   };
 
-  const activeProject = projects.find((project) => project.repoId === activeProjectId) ?? null;
+  const activeProject = projects.find((project) => project.projectId === activeProjectId) ?? null;
 
   if (view === 'dashboard' && activeProject) {
     return (
       <Dashboard
         activeProject={activeProject}
         onAskQuestion={handleAskQuestion}
+        onResumeProject={handleResumeProject}
         onSelectProject={handleSelectProject}
         onStartOver={handleReset}
         projects={projects}

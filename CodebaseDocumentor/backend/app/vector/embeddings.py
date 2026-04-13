@@ -4,9 +4,7 @@ Embedding model loader
 
 from functools import lru_cache
 
-from langchain_community.embeddings import (
-    HuggingFaceEmbeddings,
-)
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 from app.core.settings import settings
 
@@ -14,7 +12,7 @@ from app.core.settings import settings
 @lru_cache(maxsize=1)
 def get_embeddings() -> HuggingFaceEmbeddings:
     """
-    Load nomic embedding model once.
+    Load the repository's higher-context embedding model.
     """
 
     return HuggingFaceEmbeddings(
@@ -23,7 +21,5 @@ def get_embeddings() -> HuggingFaceEmbeddings:
             "device": "cpu",
             "trust_remote_code": True,
         },
-        encode_kwargs={
-            "normalize_embeddings": True,
-        },
+        encode_kwargs={"normalize_embeddings": True},
     )

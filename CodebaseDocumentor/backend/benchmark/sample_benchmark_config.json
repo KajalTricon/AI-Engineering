@@ -1,0 +1,16 @@
+{
+  "poll_interval_seconds": 5,
+  "timeout_seconds": 1800,
+  "resume_once_on_failure": true,
+  "query_smoke_test": "What does this project do?",
+  "projects": [
+    {
+      "name": "IMDB Clone",
+      "bucket": "small",
+      "repeats": 3,
+      "github_urls": [
+        "https://github.com/Kajal-Gupta23/IMDB-clone"
+      ]
+    }
+  ]
+}
