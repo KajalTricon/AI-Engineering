@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { ChevronLeft, MessageSquare, Send } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { QAPair } from '../types';
 
 interface QuestionPanelProps {
@@ -100,18 +102,25 @@ export default function QuestionPanel({
               <div className="ml-auto max-w-[85%] rounded-[18px] bg-[#d6ebf3] px-4 py-3 text-sm text-[#447f98]">
                 {item.question}
               </div>
-              <div className="max-w-full rounded-[22px] bg-white/96 px-5 py-4 text-sm leading-7 text-slate-700">
-                {item.answer}
+              <div className="max-w-full rounded-[22px] bg-[#d6ebf3] px-6 py-5 shadow-sm">
+                <div className="prose prose-sm max-w-none text-[#447f98]">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {item.answer}
+                  </ReactMarkdown>
+                </div>
                 {item.sources.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {item.sources.map((source) => (
-                      <span
-                        key={source}
-                        className="rounded-full bg-[#d6ebf3] px-3 py-1 text-xs font-mono text-[#447f98]"
-                      >
-                        {source}
-                      </span>
-                    ))}
+                  <div className="mt-5 pt-4 border-t border-[#447f98]/20">
+                    <p className="text-xs font-medium text-[#447f98]/80 mb-2">Sources:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {item.sources.map((source, index) => (
+                        <span
+                          key={`${source}-${index}`}
+                          className="rounded-full bg-[#d6ebf3] px-3 py-1.5 text-xs font-mono text-[#447f98]"
+                        >
+                          {source}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -140,3 +149,4 @@ export default function QuestionPanel({
     </div>
   );
 }
+ 

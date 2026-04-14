@@ -70,3 +70,18 @@ async def try_get_remote_commit(normalized_url: str) -> str | None:
         return await get_remote_head_commit(normalized_url)
     except Exception:
         return None
+
+
+async def find_existing_completed_repository(db: AsyncSession, normalized_url: str) -> Repository | None:
+    """
+    Find a completed repository with the same normalized URL from any project.
+    Returns the most recently completed repository if found, None otherwise.
+    """
+    result = await db.execute(
+        select(Repository)
+        .where(Repository.normalized_url == normalized_url)
+        .where(Repository.status == "completed")
+        .order_by(Repository.updated_at.desc())
+    )
+    return result.scalars().first()
+ 

@@ -25,6 +25,13 @@ export interface SubmittedRepository {
   commit_sha?: string | null;
 }
 
+export interface ProjectSummary {
+  project_id: string;
+  name: string;
+  status: RepoStatus;
+  repository_count: number;
+}
+
 export interface SubmitProjectResponse {
   project_id: string;
   name: string;
@@ -32,6 +39,7 @@ export interface SubmitProjectResponse {
   message: string;
   repositories: SubmittedRepository[];
   total_repositories: number;
+  related_projects?: ProjectSummary[] | null;
 }
 
 export interface ProjectStatusResponse {
@@ -131,3 +139,4 @@ export interface ProjectWorkspace {
   workspaceLoaded: boolean;
   workspaceLoading: boolean;
 }
+ 

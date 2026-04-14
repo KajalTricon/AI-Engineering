@@ -17,7 +17,7 @@ export default function Home({
   onSubmit,
   projects,
 }: HomeProps) {
-  const [urls, setUrls] = useState('https://github.com/tricon-ai/codedoc');
+  const [urls, setUrls] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function Home({
                         ref={textareaRef}
                         className="mt-2 w-full resize-none overflow-hidden bg-transparent text-[15px] leading-6 text-white outline-none placeholder:text-[#b9d8e1]"
                         onChange={(event) => setUrls(event.target.value)}
-                        placeholder={'https://github.com/org/service-one\nhttps://github.com/org/service-two'}
+                        placeholder="Enter GitHub repository URLs"
                         rows={1}
                         value={urls}
                       />
@@ -116,3 +116,4 @@ export default function Home({
     </div>
   );
 }
+ 

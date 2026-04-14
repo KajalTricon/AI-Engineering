@@ -43,6 +43,14 @@ class SubmitProjectResponse(BaseModel):
     message: str
     repositories: list[SubmittedRepository]
     total_repositories: int
+    related_projects: Optional[list["ProjectSummary"]] = None  # Individual and combined projects
+
+
+class ProjectSummary(BaseModel):
+    project_id: str
+    name: str
+    status: str
+    repository_count: int
 
 
 class ProjectStatusResponse(BaseModel):
@@ -54,3 +62,4 @@ class ProjectStatusResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     repositories: list[SubmittedRepository] = Field(default_factory=list)
+ 

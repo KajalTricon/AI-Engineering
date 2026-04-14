@@ -1,7 +1,3 @@
-"""
-Repository routes
-"""
-
 import asyncio
 
 from fastapi import (

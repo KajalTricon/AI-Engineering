@@ -21,20 +21,28 @@ export default function ProgressTracker({ projects }: ProgressTrackerProps) {
 
   const completedCount = projects.filter((project) => project.status?.status === 'completed').length;
   const failedCount = projects.filter((project) => project.status?.status === 'failed').length;
-  const totalCount = projects.length;
-  const allCompleted = completedCount === totalCount;
+  
+  // Count unique repositories (not projects)
+  const uniqueRepos = new Set<string>();
+  projects.forEach(project => {
+    project.repositories.forEach(repo => uniqueRepos.add(repo.github_url));
+  });
+  const totalRepoCount = uniqueRepos.size;
+  
+  const allCompleted = completedCount === projects.length;
 
   const steps = [
     {
       id: 'submitted',
       icon: <Clock3 size={18} />,
-      title: `Submitted ${totalCount} ${totalCount === 1 ? 'project' : 'projects'}`,
+      title: `Submitted ${totalRepoCount} ${totalRepoCount === 1 ? 'repository' : 'repositories'}`,
       tone: 'text-[#d6ebf3]',
       done: true,
     },
     ...projects.map((project) => {
       const status = project.status?.status;
       const statusLabel = status || 'submitted';
+      const isCombined = project.status?.repository_count && project.status.repository_count > 1;
 
       if (status === 'completed') {
         return {
@@ -60,8 +68,8 @@ export default function ProgressTracker({ projects }: ProgressTrackerProps) {
       return {
         id: project.projectId,
         icon: <Loader2 className="animate-spin" size={18} />,
-        title: `${getProjectName(project)} ${statusLabel}`,
-        subtitle: 'Generating summaries and documentation',
+        title: `${getProjectName(project)} ${isCombined ? 'analyzing' : statusLabel}`,
+        subtitle: isCombined ? 'Generating combined documentation' : 'Generating summaries and documentation',
         tone: 'text-[#d6ebf3]',
         done: false,
       };
@@ -73,7 +81,7 @@ export default function ProgressTracker({ projects }: ProgressTrackerProps) {
         ? 'Done'
         : failedCount > 0
           ? 'Waiting for successful completion'
-          : `Waiting for ${totalCount - completedCount} ${totalCount - completedCount === 1 ? 'project' : 'projects'}`,
+          : `Waiting for ${projects.length - completedCount} ${projects.length - completedCount === 1 ? 'project' : 'projects'}`,
       tone: allCompleted ? 'text-[#d6ebf3]' : 'text-[#b9d8e1]',
       done: allCompleted,
     },
@@ -102,3 +110,4 @@ export default function ProgressTracker({ projects }: ProgressTrackerProps) {
     </div>
   );
 }
+ 

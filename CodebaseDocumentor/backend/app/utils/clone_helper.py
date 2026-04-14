@@ -3,6 +3,7 @@ Git utilities
 """
 
 import asyncio
+import shutil
 from pathlib import Path
 
 from app.core.settings import settings
@@ -22,6 +23,10 @@ async def clone_repo(
         parents=True,
         exist_ok=True,
     )
+    
+    # Remove existing directory if it exists
+    if clone_dir.exists():
+        shutil.rmtree(clone_dir, ignore_errors=True)
 
     proc = await asyncio.create_subprocess_exec(
         "git",

@@ -191,23 +191,50 @@ function App() {
 
     try {
       const response = await submitProject(githubUrls);
-      const nextProjects: ProjectWorkspace[] = [{
-        projectId: response.project_id,
-        projectName: response.name,
-        repositories: response.repositories,
-        status: null,
-        documentation: null,
-        modules: [],
-        qaHistory: [],
-        error: null,
-        workspaceLoaded: false,
-        workspaceLoading: false,
-      }];
+      
+      // If there are related_projects (individual + combined), create workspace for each
+      let nextProjects: ProjectWorkspace[];
+      
+      if (response.related_projects) {
+        // Fetch full status for each related project to get their repositories
+        const projectPromises = response.related_projects.map(async (proj) => {
+          const fullStatus = await getProjectStatus(proj.project_id);
+          return {
+            projectId: proj.project_id,
+            projectName: proj.name,
+            repositories: fullStatus.repositories,
+            status: fullStatus,
+            documentation: null,
+            modules: [],
+            qaHistory: [],
+            error: null,
+            workspaceLoaded: false,
+            workspaceLoading: false,
+          };
+        });
+        
+        nextProjects = await Promise.all(projectPromises);
+      } else {
+        // Single project submission
+        nextProjects = [{
+          projectId: response.project_id,
+          projectName: response.name,
+          repositories: response.repositories,
+          status: null,
+          documentation: null,
+          modules: [],
+          qaHistory: [],
+          error: null,
+          workspaceLoaded: false,
+          workspaceLoading: false,
+        }];
+      }
 
       projectsRef.current = nextProjects;
       setProjects(nextProjects);
       setActiveProjectId(nextProjects[0]?.projectId ?? null);
 
+      // Refresh status for all projects
       await Promise.all(
         nextProjects.map(async (project) => {
           await refreshProjectStatus(project.projectId);
@@ -335,3 +362,4 @@ function App() {
 }
 
 export default App;
+ 

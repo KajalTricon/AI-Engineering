@@ -21,7 +21,14 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 @router.post("", response_model=SubmitProjectResponse, status_code=202)
 async def submit_project(body: SubmitProjectRequest, db: AsyncSession = Depends(get_db)):
     result = await project_service.submit_project(db, body.project_name, body.urls)
+    
+    # Start processing for individual projects
+    for individual_project in result.individual_projects:
+        asyncio.create_task(pipeline_service.process_project(str(individual_project.id)))
+    
+    # Start processing for combined project
     asyncio.create_task(pipeline_service.process_project(str(result.project.id)))
+    
     return await project_service.build_submit_response(result)
 
 
@@ -50,3 +57,4 @@ async def resume_project(project_id: str, db: AsyncSession = Depends(get_db)):
     project = await project_service.get_project(db, project_id)
     asyncio.create_task(pipeline_service.process_project(project_id))
     return await project_service.get_status(db, str(project.id))
+ 

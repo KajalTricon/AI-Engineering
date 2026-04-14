@@ -17,7 +17,7 @@ from app.core.logging import get_logger
 from app.models.documentation import Documentation
 from app.models.project import Project
 from app.models.repository import Repository
-from app.services.git_service import get_local_head_commit
+from app.services.git_service import get_local_head_commit, get_remote_head_commit
 from app.services.module_service import (
     analyze_modules,
     get_repository_module_summaries,
@@ -45,19 +45,61 @@ async def process_project(project_id: str) -> None:
         for repository in repositories:
             repository_name = repository.name or repository.github_url.rstrip("/").split("/")[-1]
 
+            # Check if repository is already completed
             if repository.status == "completed":
-                existing_summaries = await get_repository_module_summaries(str(repository.id), repository_name)
-                all_module_summaries.extend(existing_summaries)
-                repository_profiles.append(
-                    _build_repository_profile(repository_name, repository.github_url, existing_summaries)
-                )
-                logger.info(
-                    "pipeline_repository_skip project_id=%s repo_id=%s reason=already_completed",
-                    project_id,
-                    repository.id,
-                )
-                continue
+                # If we have a stored commit SHA, check if there are new commits
+                if repository.commit_sha:
+                    try:
+                        remote_commit = await get_remote_head_commit(repository.github_url)
+                        
+                        # No new commits, skip processing
+                        if remote_commit == repository.commit_sha:
+                            existing_summaries = await get_repository_module_summaries(str(repository.id), repository_name)
+                            all_module_summaries.extend(existing_summaries)
+                            repository_profiles.append(
+                                _build_repository_profile(repository_name, repository.github_url, existing_summaries)
+                            )
+                            logger.info(
+                                "pipeline_repository_skip project_id=%s repo_id=%s reason=already_completed_no_new_commits commit=%s",
+                                project_id,
+                                repository.id,
+                                repository.commit_sha[:8],
+                            )
+                            continue
+                        else:
+                            # New commits detected, reprocess the repository
+                            logger.info(
+                                "pipeline_repository_reprocess project_id=%s repo_id=%s reason=new_commits old_commit=%s new_commit=%s",
+                                project_id,
+                                repository.id,
+                                repository.commit_sha[:8],
+                                remote_commit[:8],
+                            )
+                            await set_repository_status(str(repository.id), "pending", None)
+                    except Exception as exc:
+                        logger.warning(
+                            "pipeline_repository_commit_check_failed project_id=%s repo_id=%s error=%s continuing_with_reprocess",
+                            project_id,
+                            repository.id,
+                            str(exc),
+                        )
+                        # If we can't check remote commit, reprocess to be safe
+                        await set_repository_status(str(repository.id), "pending", None)
+                else:
+                    # Completed but no commit SHA stored, use existing summaries
+                    existing_summaries = await get_repository_module_summaries(str(repository.id), repository_name)
+                    all_module_summaries.extend(existing_summaries)
+                    repository_profiles.append(
+                        _build_repository_profile(repository_name, repository.github_url, existing_summaries)
+                    )
+                    logger.info(
+                        "pipeline_repository_skip project_id=%s repo_id=%s reason=already_completed_no_commit_sha",
+                        project_id,
+                        repository.id,
+                    )
+                    continue
 
+            # Process repositories that are not completed or need reprocessing
             await set_repository_status(str(repository.id), "processing", None)
             await refresh_project_status(project_id)
 
@@ -200,3 +242,4 @@ def _name_tokens(name: str) -> set[str]:
         for token in re.split(r"[^a-z0-9]+", name.lower())
         if token and len(token) > 2
     }
+ 
